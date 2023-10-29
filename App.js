@@ -20,6 +20,8 @@ export default function App() {
         setLocation(currentLocation);
         console.log(currentLocation);
       };
+
+      // changes
       getCurrentLocation();
 
       const refreshLocation = setInterval(getCurrentLocation, 1000);

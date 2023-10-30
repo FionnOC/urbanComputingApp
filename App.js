@@ -33,6 +33,43 @@ export default function App() {
   const [location, setLocation] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
 
+  const getApiData = async () => {
+    try {
+      // console.log("before fetch");
+      const response = await fetch(
+        "https://data.smartdublin.ie/bleeperbike-api/last_snapshot/"
+      );
+      if (!response.ok) {
+        throw new Error("Network response error");
+      }
+      // console.log("after fetch");
+      const data = await response.json();
+
+      data.forEach(async (item) => {
+        const collectionRef = collection(db, "apiData");
+        try {
+          await addDoc(collectionRef, {
+            bike_id: item.bike_id,
+            is_disabled: item.is_disabled,
+            is_reserved: item.is_reserved,
+            last_reported: item.last_reported,
+            lat: item.lat,
+            lon: item.lon,
+          });
+          // console.log("api to firebase complete");
+        } catch (error) {
+          console.error("error sending data: ", error);
+        }
+      });
+      console.log("done");
+
+      // console.log(data);
+    } catch (error) {
+      console.error("Error fetching data from API: ", error);
+      return null;
+    }
+  };
+
   const sendLocationToFirebase = async (locationData) => {
     console.log("entered Sendlocation function");
     const collectionRef = collection(db, "positions");
@@ -72,10 +109,10 @@ export default function App() {
       };
 
       getCurrentLocation();
+      getApiData();
 
       const refreshLocation = setInterval(getCurrentLocation, 10000);
 
-      // Cleanup the interval when the component is unmounted
       return () => clearInterval(refreshLocation);
     })();
   }, []);

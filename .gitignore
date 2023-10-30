@@ -3,6 +3,9 @@
 # dependencies
 node_modules/
 
+# .json key
+urban-computing-oconnof9-firebase-adminsdk-ebtnq-a397be541d.json
+
 # Expo
 .expo/
 dist/

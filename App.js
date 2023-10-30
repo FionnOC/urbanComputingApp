@@ -3,9 +3,53 @@ import { StyleSheet, Text, View } from "react-native";
 import { useState, useEffect } from "react";
 import * as Location from "expo-location";
 
+// firebase
+import { initializeApp } from "firebase/app";
+// import { getAnalytics } from "firebase/analytics";
+import { getFirestore, addDoc, collection } from "firebase/firestore";
+
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD4Ggrwk8hQsaw_tjciJ63YEev2aV1ae84",
+  authDomain: "urban-computing-oconnof9.firebaseapp.com",
+  projectId: "urban-computing-oconnof9",
+  storageBucket: "urban-computing-oconnof9.appspot.com",
+  messagingSenderId: "648137198410",
+  appId: "1:648137198410:web:d4bd820bcd4bdefe020fb3",
+  measurementId: "G-VHX6H62W4X",
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+// const analytics = getAnalytics(app);
+
 export default function App() {
   const [location, setLocation] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
+
+  const sendLocationToFirebase = async (locationData) => {
+    console.log("entered Sendlocation function");
+    const collectionRef = collection(db, "positions");
+    const { coords, timestamp } = locationData;
+    try {
+      await addDoc(collectionRef, {
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        timestamp: new Date(timestamp),
+        speed: coords.speed,
+      });
+      console.log("Location data sent to Firestore");
+    } catch (error) {
+      console.log("error sending data: ", error);
+    }
+    console.log("finished func");
+  };
 
   useEffect(() => {
     (async () => {
@@ -16,15 +60,20 @@ export default function App() {
       }
 
       const getCurrentLocation = async () => {
-        let currentLocation = await Location.getCurrentPositionAsync({});
-        setLocation(currentLocation);
-        console.log(currentLocation);
+        try {
+          let currentLocation = await Location.getCurrentPositionAsync({});
+          setLocation(currentLocation);
+          console.log(currentLocation);
+
+          sendLocationToFirebase(currentLocation);
+        } catch (error) {
+          console.log("Error: ", error);
+        }
       };
 
-      // changes
       getCurrentLocation();
 
-      const refreshLocation = setInterval(getCurrentLocation, 1000);
+      const refreshLocation = setInterval(getCurrentLocation, 10000);
 
       // Cleanup the interval when the component is unmounted
       return () => clearInterval(refreshLocation);
@@ -48,6 +97,7 @@ export default function App() {
       </Text>
       <Text> Speed: {location ? location.coords.speed : "Loading..."}</Text>
       <Text> Time: {location ? location.timestamp : "Loading..."}</Text>
+      <Text> {text} </Text>
       <StatusBar style="auto" />
     </View>
   );

@@ -1,5 +1,5 @@
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, Button } from "react-native";
 import { useState, useEffect } from "react";
 import * as Location from "expo-location";
 
@@ -32,6 +32,7 @@ const db = getFirestore(app);
 export default function App() {
   const [location, setLocation] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
+  const [fetchingApiData, setFetchingApiData] = useState(false);
 
   const getApiData = async () => {
     try {
@@ -48,6 +49,7 @@ export default function App() {
       data.forEach(async (item) => {
         const collectionRef = collection(db, "apiData");
         try {
+          const currentTime = new Date();
           await addDoc(collectionRef, {
             bike_id: item.bike_id,
             is_disabled: item.is_disabled,
@@ -55,6 +57,7 @@ export default function App() {
             last_reported: item.last_reported,
             lat: item.lat,
             lon: item.lon,
+            timestamp: currentTime,
           });
           // console.log("api to firebase complete");
         } catch (error) {
@@ -68,6 +71,12 @@ export default function App() {
       console.error("Error fetching data from API: ", error);
       return null;
     }
+  };
+
+  const fetchApiDataOnClick = async () => {
+    setFetchingApiData(true);
+    await getApiData();
+    setFetchingApiData(false);
   };
 
   const sendLocationToFirebase = async (locationData) => {
@@ -108,12 +117,23 @@ export default function App() {
         }
       };
 
+      // const refreshFunction = () => {
+      //   getCurrentLocation();
+      //   getApiData();
+      // };
+
       getCurrentLocation();
-      getApiData();
+      // getApiData();
 
       const refreshLocation = setInterval(getCurrentLocation, 10000);
 
-      return () => clearInterval(refreshLocation);
+      // wait 2 mins for every refresh of getApiData
+      // const refreshBikesLocation = setInterval(getApiData, 120000);
+
+      return () => {
+        clearInterval(refreshLocation);
+        // clearInterval(refreshBikesLocation);
+      };
     })();
   }, []);
 
@@ -126,6 +146,13 @@ export default function App() {
 
   return (
     <View style={styles.container}>
+      <Button
+        title="Fetch API Data"
+        onPress={fetchApiDataOnClick}
+        disabled={fetchingApiData}
+      />
+      {/* Display loading message if fetching data */}
+      {fetchingApiData && <Text>Loading API data...</Text>}
       <Text>
         Latitude: {location ? location.coords.latitude : "Loading..."}
       </Text>
@@ -134,7 +161,7 @@ export default function App() {
       </Text>
       <Text> Speed: {location ? location.coords.speed : "Loading..."}</Text>
       <Text> Time: {location ? location.timestamp : "Loading..."}</Text>
-      <Text> {text} </Text>
+      {/* <Text> {text} </Text> */}
       <StatusBar style="auto" />
     </View>
   );

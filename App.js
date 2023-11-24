@@ -2,6 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import { StyleSheet, Text, View, Button } from "react-native";
 import { useState, useEffect } from "react";
 import * as Location from "expo-location";
+import MapView, { Marker } from "react-native-maps";
 
 // firebase
 import { initializeApp } from "firebase/app";
@@ -32,6 +33,22 @@ const db = getFirestore(app);
 export default function App() {
   const [location, setLocation] = useState(null);
   const [fetchingApiData, setFetchingApiData] = useState(false);
+  const [closestBike, setClosestBike] = useState(null);
+
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Radius of the Earth in kilometers
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * (Math.PI / 180)) *
+        Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c; // Distance in kilometers
+    return distance;
+  };
 
   const getApiData = async () => {
     try {
@@ -48,9 +65,19 @@ export default function App() {
       // put into json format
       const data = await response.json();
 
+      let closestDistance = Infinity;
+      // let closestBike = null;
+
+      // Declare currentLat and currentLong
+      let currentLat;
+      let currentLong;
+
+      let prevBike = null;
+
       // for each object returned by the API send a document to Firebase
       data.forEach(async (item) => {
         const collectionRef = collection(db, "apiData");
+
         try {
           // get current time
           const currentTime = new Date();
@@ -63,12 +90,46 @@ export default function App() {
             lon: item.lon,
             timestamp: currentTime,
           });
+
+          currentLat = location.coords.latitude;
+          currentLong = location.coords.longitude;
+
+          // calculate the distance between the device and bike
+          newdistance = calculateDistance(
+            currentLat,
+            currentLong,
+            item.lat,
+            item.lon
+          );
+
+          // if the distance is less than the previous closest distance
+          // reassign the closest distance and closest bike
+          if (newdistance < closestDistance) {
+            closestDistance = newdistance;
+            closestBike = item;
+            setClosestBike(closestBike);
+            console.log(closestBike.id);
+          }
+
+          if (closestBike != prevBike) {
+            // console.log(closestBike.id);
+            // console.log("Lat: " + closestBike.lat);
+            // console.log("Lon: " + closestBike.lon);
+            // console.log("Is reserved : " + closestBike.is_reserved);
+            // console.log("Last reported : " + closestBike.last_reported);
+            prevBike = closestBike;
+          }
           // console.log("api to firebase complete");
         } catch (error) {
           console.error("error sending data: ", error);
         }
+        // console.log("FIIIINNNNNIIIIIITTTTTOOOOOOOOOO");
       });
-      console.log("done");
+
+      // if (closestBike) {
+      //   return closestBike;
+      // }
+      // return closestBike;
 
       // console.log(data);
     } catch (error) {
@@ -80,7 +141,10 @@ export default function App() {
   // update the state of the button
   const fetchApiDataOnClick = async () => {
     setFetchingApiData(true);
-    await getApiData();
+    let bike = await getApiData();
+    // console.log("BIKE = " + bike);
+    // setClosestBike(bike);
+    console.log("FINISHED getAPIdata");
     setFetchingApiData(false);
   };
 
@@ -160,6 +224,40 @@ export default function App() {
       />
       {/* Display loading message if fetching data */}
       {fetchingApiData && <Text>Loading API data...</Text>}
+      {/* <View style={{ flex: 1, width: "100%" }}> */}
+      <MapView
+        style={{ flex: 0.5, width: "100%" }}
+        initialRegion={{
+          latitude: 53.3498,
+          longitude: -6.2603,
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        }}
+      >
+        {/* if the closest bike is assigned, create a marker on the map! */}
+        {/* {closestBike && (
+          <Marker
+            coordinate={{
+              latitude: 53.3498,
+              longitude: -6.2603,
+            }}
+            title={"Hello there"}
+          />
+        )}
+        */}
+
+        {/* {closestBike && (
+          <Marker
+            coordinate={{
+              latitude: closestBike.lat,
+              longitude: closestBike.lon,
+            }}
+            title={`Bike ID: ${closestBike.bike_id}`}
+            description={`Reserved: ${closestBike.is_reserved}`}
+          />
+        )} */}
+      </MapView>
+      {/* </View> */}
       {/* Depending on the state of location, display loading message or the actual data returned from phone */}
       <Text>
         Latitude: {location ? location.coords.latitude : "Loading..."}

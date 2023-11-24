@@ -31,24 +31,28 @@ const db = getFirestore(app);
 
 export default function App() {
   const [location, setLocation] = useState(null);
-  const [errorMsg, setErrorMsg] = useState(null);
   const [fetchingApiData, setFetchingApiData] = useState(false);
 
   const getApiData = async () => {
     try {
       // console.log("before fetch");
+      // fetch data using api
       const response = await fetch(
         "https://data.smartdublin.ie/bleeperbike-api/last_snapshot/"
       );
+      // if a code 200 is not responded
       if (!response.ok) {
         throw new Error("Network response error");
       }
       // console.log("after fetch");
+      // put into json format
       const data = await response.json();
 
+      // for each object returned by the API send a document to Firebase
       data.forEach(async (item) => {
         const collectionRef = collection(db, "apiData");
         try {
+          // get current time
           const currentTime = new Date();
           await addDoc(collectionRef, {
             bike_id: item.bike_id,
@@ -73,12 +77,14 @@ export default function App() {
     }
   };
 
+  // update the state of the button
   const fetchApiDataOnClick = async () => {
     setFetchingApiData(true);
     await getApiData();
     setFetchingApiData(false);
   };
 
+  // send the device data to firebase using addDoc
   const sendLocationToFirebase = async (locationData) => {
     console.log("entered Sendlocation function");
     const collectionRef = collection(db, "positions");
@@ -94,38 +100,44 @@ export default function App() {
     } catch (error) {
       console.log("error sending data: ", error);
     }
-    console.log("finished func");
+    console.log("Finished sending location to firebase");
   };
 
+  const getCurrentLocation = async () => {
+    try {
+      let currentLocation = await Location.getCurrentPositionAsync({});
+      setLocation(currentLocation);
+      console.log(currentLocation);
+
+      // send location data to firebase
+      sendLocationToFirebase(currentLocation);
+    } catch (error) {
+      console.log("Error: ", error);
+    }
+  };
+
+  // followed the logic provided by the expo location documentation and used useEffect to execute when the app is rendered
   useEffect(() => {
     (async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
+
+      // check if permission was granted by user
       if (status !== "granted") {
-        setErrorMsg("Permission to access location was denied");
+        console.log("Permission to access location was denied");
         return;
       }
-
-      const getCurrentLocation = async () => {
-        try {
-          let currentLocation = await Location.getCurrentPositionAsync({});
-          setLocation(currentLocation);
-          console.log(currentLocation);
-
-          sendLocationToFirebase(currentLocation);
-        } catch (error) {
-          console.log("Error: ", error);
-        }
-      };
 
       // const refreshFunction = () => {
       //   getCurrentLocation();
       //   getApiData();
       // };
 
+      // get the current location from the device being run on
       getCurrentLocation();
       // getApiData();
 
-      const refreshLocation = setInterval(getCurrentLocation, 10000);
+      // get location data every 5 seconds
+      const refreshLocation = setInterval(getCurrentLocation, 5000);
 
       // wait 2 mins for every refresh of getApiData
       // const refreshBikesLocation = setInterval(getApiData, 120000);
@@ -137,12 +149,7 @@ export default function App() {
     })();
   }, []);
 
-  let text = "Waiting..";
-  if (errorMsg) {
-    text = errorMsg;
-  } else if (location) {
-    text = JSON.stringify(location);
-  }
+  text = JSON.stringify(location);
 
   return (
     <View style={styles.container}>
@@ -153,6 +160,7 @@ export default function App() {
       />
       {/* Display loading message if fetching data */}
       {fetchingApiData && <Text>Loading API data...</Text>}
+      {/* Depending on the state of location, display loading message or the actual data returned from phone */}
       <Text>
         Latitude: {location ? location.coords.latitude : "Loading..."}
       </Text>

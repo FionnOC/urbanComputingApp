@@ -1,8 +1,10 @@
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, Text, View, Button } from "react-native";
+import { StyleSheet, Text, View, Button, TextInput } from "react-native";
 import { useState, useEffect, useRef } from "react";
 import * as Location from "expo-location";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Marker, Polyline } from "react-native-maps";
+
+import { decode } from "@mapbox/polyline";
 
 // firebase
 import { initializeApp } from "firebase/app";
@@ -30,18 +32,44 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 // const analytics = getAnalytics(app);
 
+const getDirections = async (startLoc, destinationLoc) => {
+  try {
+    const KEY = "AIzaSyD4Ggrwk8hQsaw_tjciJ63YEev2aV1ae84"; //put your API key here.
+    //otherwise, you'll have an 'unauthorized' error.
+    let resp = await fetch(
+      `https://maps.googleapis.com/maps/api/directions/json?origin=${startLoc}&destination=${destinationLoc}&key=${KEY}`
+    );
+    let respJson = await resp.json();
+    let points = decode(respJson.routes[0].overview_polyline.points);
+    console.log(points);
+    let coords = points.map((point, index) => {
+      return {
+        latitude: point[0],
+        longitude: point[1],
+      };
+    });
+    return coords;
+  } catch (error) {
+    return error;
+  }
+};
+
 export default function App() {
   // set up states and variables
   const [location, setLocation] = useState(null);
   const [fetchingApiData, setFetchingApiData] = useState(false);
   const [closestBike, setClosestBike] = useState(null);
   const [data_test, setData] = useState([]);
+  const [destination, setDestination] = useState("");
   const [region, setRegion] = useState({
     latitude: 53.3498,
     longitude: -6.2603,
     latitudeDelta: 0.01,
     longitudeDelta: 0.01,
   });
+  const [coords, setCoords] = useState([]);
+  const [directions, setDirections] = useState([]);
+
   const mapRef = useRef(null);
 
   // calculate distance forumula based on lat lon
@@ -58,6 +86,15 @@ export default function App() {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = R * c; // Distance in kilometers
     return distance;
+  };
+
+  const onClickGetDirections = async () => {
+    if (closestBike && destination) {
+      const startLocation = `${closestBike.lat}, ${closestBike.lon}`;
+      const endLocation = encodeURIComponent(destination);
+      const directions = await getDirections(startLocation, endLocation);
+      setDirections(directions);
+    }
   };
 
   // Function to fetch data from the API
@@ -150,7 +187,7 @@ export default function App() {
       setClosestBike(closestBike);
     }
 
-    pushDataToFirebase(data);
+    // pushDataToFirebase(data);
 
     return closestBike;
   };
@@ -162,16 +199,6 @@ export default function App() {
     console.log("BIKE = ", bike?.id);
     setFetchingApiData(false);
   };
-
-  // // update the state of the button
-  // const fetchApiDataOnClick = async () => {
-  //   setFetchingApiData(true);
-  //   let bike = await getApiData();
-  //   console.log("BIKE = " + bike.id);
-  //   setClosestBike(bike);
-  //   console.log("FINISHED getAPIdata");
-  //   setFetchingApiData(false);
-  // };
 
   // send the device data to firebase using addDoc
   const sendLocationToFirebase = async (locationData) => {
@@ -215,21 +242,12 @@ export default function App() {
         console.log("Permission to access location was denied");
         return;
       }
-
-      // const refreshFunction = () => {
-      //   getCurrentLocation();
-      //   getApiData();
-      // };
-
       // get the current location from the device being run on
       getCurrentLocation();
       // getApiData();
 
       // get location data every 5 seconds
       const refreshLocation = setInterval(getCurrentLocation, 5000);
-
-      // wait 2 mins for every refresh of getApiData
-      // const refreshBikesLocation = setInterval(getApiData, 120000);
 
       return () => {
         clearInterval(refreshLocation);
@@ -256,6 +274,19 @@ export default function App() {
 
   return (
     <View style={styles.container}>
+      <TextInput
+        style={styles.input}
+        placeholder="Enter destination:"
+        value={destination}
+        onChangeText={(text) => setDestination(text)}
+      />
+      {closestBike && destination && (
+        <Button
+          title="get directions"
+          onPress={onClickGetDirections}
+          // disabled={!closestBike || !destination}
+        />
+      )}
       <Button
         title="Fetch API Data"
         onPress={fetchApiDataOnClick}
@@ -266,7 +297,7 @@ export default function App() {
       {/* <View style={{ flex: 1, width: "100%" }}> */}
       <MapView
         ref={mapRef}
-        style={{ flex: 0.5, width: "100%" }}
+        style={{ flex: 0.75, width: "100%" }}
         initialRegion={{
           latitude: 53.3498,
           longitude: -6.2603,
@@ -287,7 +318,7 @@ export default function App() {
             pinColor="red"
           />
         )}
-        {data_test &&
+        {/* {data_test &&
           data_test.map((bike) => (
             <Marker
               key={bike.bike_id} // Make sure to provide a unique key for each Marker
@@ -299,7 +330,14 @@ export default function App() {
               description={`Reserved: ${bike.is_reserved}`}
               pinColor="green"
             />
-          ))}
+          ))} */}
+        {directions.length > 0 && (
+          <Polyline
+            coordinates={directions}
+            strokeWidth={3}
+            strokeColor="blue"
+          />
+        )}
       </MapView>
       {closestBike && (
         <Button

@@ -36,7 +36,7 @@ const getDirections = async (startLoc, destinationLoc) => {
     const KEY = "AIzaSyD4Ggrwk8hQsaw_tjciJ63YEev2aV1ae84"; //put your API key here.
     //otherwise, you'll have an 'unauthorized' error.
     let resp = await fetch(
-      `https://maps.googleapis.com/maps/api/directions/json?origin=${startLoc}&destination=${destinationLoc}&key=${KEY}`
+      `https://maps.googleapis.com/maps/api/directions/json?origin=${startLoc}&key=${KEY}&destination=${destinationLoc}&mode=bicycling`
     );
     let respJson = await resp.json();
     let points = decode(respJson.routes[0].overview_polyline.points);
@@ -317,12 +317,14 @@ export default function App() {
       />
       {closestBike && destination && (
         <Button
-          title="get directions"
+          style={(styles.button, styles.directionsButton)}
+          title="Get Directions"
           onPress={onClickGetDirections}
           // disabled={!closestBike || !destination}
         />
       )}
       <Button
+        style={styles.button}
         title="Fetch API Data"
         onPress={fetchApiDataOnClick}
         disabled={fetchingApiData}
@@ -332,7 +334,7 @@ export default function App() {
       {/* <View style={{ flex: 1, width: "100%" }}> */}
       <MapView
         ref={mapRef}
-        style={{ flex: 0.75, width: "100%" }}
+        style={styles.map}
         initialRegion={{
           latitude: 53.3498,
           longitude: -6.2603,
@@ -377,6 +379,7 @@ export default function App() {
       </MapView>
       {closestBike && (
         <Button
+          style={styles.button}
           onPress={() => goToClosestBike()}
           title="Show me the closest bike ..."
         />
@@ -399,11 +402,43 @@ export default function App() {
   );
 }
 
+// const styles = StyleSheet.create({
+//   container: {
+//     flex: 1,
+//     backgroundColor: "#fff",
+//     alignItems: "center",
+//     justifyContent: "center",
+//   },
+// });
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
+    padding: 16, // Add some padding to the container
+  },
+  input: {
+    height: 40,
+    borderColor: "gray",
+    borderWidth: 1,
+    marginBottom: 16, // Add margin at the bottom of the input
+    paddingHorizontal: 8, // Add horizontal padding
+    width: "100%", // Make the input take the full width
+    marginTop: 36,
+  },
+  directionsButton: {
+    marginVertical: 16, // Adjust this value based on the amount of space you want
+  },
+
+  button: {
+    marginVertical: 8, // Add vertical margin to the buttons
+    width: "100%", // Make the buttons take the full width
+  },
+  map: {
+    flex: 1,
+    width: "100%",
+    marginBottom: 16, // Add margin at the bottom of the map
   },
 });

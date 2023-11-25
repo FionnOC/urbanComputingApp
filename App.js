@@ -44,13 +44,6 @@ export default function App() {
   });
   const mapRef = useRef(null);
 
-  // const closestBikeRegion = {
-  //   latitude: 35.6762,
-  //   longitude: 139.6503,
-  //   latitudeDelta: 0.01,
-  //   longitudeDelta: 0.01,
-  // };
-
   // calculate distance forumula based on lat lon
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371; // Radius of the Earth in kilometers
@@ -66,99 +59,6 @@ export default function App() {
     const distance = R * c; // Distance in kilometers
     return distance;
   };
-
-  // get data from api data and upload to the firestore
-  // also set the closest bike
-  // const getApiData = async () => {
-  //   try {
-  //     // console.log("before fetch");
-  //     // fetch data using api
-  //     const response = await fetch(
-  //       "https://data.smartdublin.ie/bleeperbike-api/last_snapshot/"
-  //     );
-  //     // if a code 200 is not responded
-  //     if (!response.ok) {
-  //       throw new Error("Network response error");
-  //     }
-  //     // console.log("after fetch");
-  //     // put into json format
-  //     const data = await response.json();
-  //     setData(data);
-
-  //     let closestDistance = Infinity;
-  //     let checkClosestBike = null;
-
-  //     // Declare currentLat and currentLong
-  //     let currentLat;
-  //     let currentLong;
-
-  //     let prevBike = null;
-
-  //     // for each object returned by the API send a document to Firebase
-  //     data.forEach((item) => {
-  //       try {
-  //         currentLat = location.coords.latitude;
-  //         currentLong = location.coords.longitude;
-
-  //         // calculate the distance between the device and bike
-  //         let newdistance = calculateDistance(
-  //           currentLat,
-  //           currentLong,
-  //           item.lat,
-  //           item.lon
-  //         );
-  //         // console.log(newdistance);
-
-  //         // if the distance is less than the previous closest distance
-  //         // reassign the closest distance and closest bike
-  //         if (newdistance < closestDistance) {
-  //           closestDistance = newdistance;
-  //           checkClosestBike = item;
-  //           // setClosestBike(closestBike);
-  //           console.log(closestDistance);
-  //           // console.log(closestBike.id);
-  //         }
-  //         // console.log("api to firebase complete");
-  //       } catch (error) {
-  //         console.error("error sending data: ", error);
-  //       }
-  //       // console.log("FIIIINNNNNIIIIIITTTTTOOOOOOOOOO");
-  //     });
-
-  //     // PUSH ALL TO FIREBASE
-
-  //     // data.forEach(async (item) => {
-  //     //   const collectionRef = collection(db, "apiData");
-  //     //   try {
-  //     //     const currentTime = new Date();
-  //     //     await addDoc(collectionRef, {
-  //     //       bike_id: item.bike_id,
-  //     //       is_disabled: item.is_disabled,
-  //     //       is_reserved: item.is_reserved,
-  //     //       last_reported: item.last_reported,
-  //     //       lat: item.lat,
-  //     //       lon: item.lon,
-  //     //       timestamp: currentTime,
-  //     //     });
-  //     //   } catch (error) {
-  //     //     console.error("error sending data: ", error);
-  //     //   }
-  //     // });
-
-  //     console.log("Each item completed");
-  //     if (checkClosestBike) {
-  //       // setClosestBike(closestBike);
-  //       // console.log(checkClosestBike);
-  //       return checkClosestBike;
-  //     }
-  //     // return closestBike;
-
-  //     // console.log(data);
-  //   } catch (error) {
-  //     console.error("Error fetching data from API: ", error);
-  //     return null;
-  //   }
-  // };
 
   // Function to fetch data from the API
   const fetchApiData = async () => {
@@ -214,14 +114,13 @@ export default function App() {
 
   // Function to push data to Firebase
   const pushDataToFirebase = async (data) => {
-    const collectionRef = collection(db, "apiData");
-
     try {
-      const currentTime = new Date();
+      data.forEach(async (item) => {
+        const collectionRef = collection(db, "apiData");
 
-      // Map through the data array and add each item to the Firestore collection
-      await Promise.all(
-        data.map(async (item) => {
+        try {
+          // get current time
+          const currentTime = new Date();
           await addDoc(collectionRef, {
             bike_id: item.bike_id,
             is_disabled: item.is_disabled,
@@ -231,12 +130,12 @@ export default function App() {
             lon: item.lon,
             timestamp: currentTime,
           });
-        })
-      );
-
-      console.log("Data sent to Firestore");
+        } catch (error) {
+          console.error();
+        }
+      });
     } catch (error) {
-      console.error("Error sending data to Firestore: ", error);
+      console.error(error);
     }
   };
 
@@ -250,6 +149,8 @@ export default function App() {
     if (closestBike) {
       setClosestBike(closestBike);
     }
+
+    pushDataToFirebase(data);
 
     return closestBike;
   };

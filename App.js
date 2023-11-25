@@ -1,6 +1,6 @@
 import { StatusBar } from "expo-status-bar";
 import { StyleSheet, Text, View, Button } from "react-native";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import * as Location from "expo-location";
 import MapView, { Marker } from "react-native-maps";
 
@@ -36,6 +36,21 @@ export default function App() {
   const [fetchingApiData, setFetchingApiData] = useState(false);
   const [closestBike, setClosestBike] = useState(null);
   const [data_test, setData] = useState([]);
+  const [region, setRegion] = useState({
+    latitude: 53.3498,
+    longitude: -6.2603,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+  });
+  const mapRef = useRef(null);
+
+  // const closestBikeRegion = {
+  //   latitude: 35.6762,
+  //   longitude: 139.6503,
+  //   latitudeDelta: 0.01,
+  //   longitudeDelta: 0.01,
+  // };
+
   // calculate distance forumula based on lat lon
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371; // Radius of the Earth in kilometers
@@ -322,6 +337,20 @@ export default function App() {
     })();
   }, []);
 
+  const goToClosestBike = () => {
+    if (closestBike) {
+      mapRef.current.animateToRegion(
+        {
+          latitude: closestBike.lat,
+          longitude: closestBike.lon,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        },
+        2000
+      );
+    }
+  };
+
   text = JSON.stringify(location);
 
   return (
@@ -335,6 +364,7 @@ export default function App() {
       {fetchingApiData && <Text>Loading API data...</Text>}
       {/* <View style={{ flex: 1, width: "100%" }}> */}
       <MapView
+        ref={mapRef}
         style={{ flex: 0.5, width: "100%" }}
         initialRegion={{
           latitude: 53.3498,
@@ -342,6 +372,7 @@ export default function App() {
           latitudeDelta: 0.0922,
           longitudeDelta: 0.0421,
         }}
+        onRegionChangeComplete={(region) => setRegion(region)}
       >
         {/* if the closest bike is assigned, create a marker on the map! */}
         {closestBike && (
@@ -369,6 +400,13 @@ export default function App() {
             />
           ))}
       </MapView>
+      {closestBike && (
+        <Button
+          onPress={() => goToClosestBike()}
+          title="Show me the closest bike ..."
+        />
+      )}
+
       {/* </View> */}
       {/* Depending on the state of location, display loading message or the actual data returned from phone */}
       <Text>

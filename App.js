@@ -35,7 +35,7 @@ export default function App() {
   const [location, setLocation] = useState(null);
   const [fetchingApiData, setFetchingApiData] = useState(false);
   const [closestBike, setClosestBike] = useState(null);
-
+  const [data_test, setData] = useState([]);
   // calculate distance forumula based on lat lon
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371; // Radius of the Earth in kilometers
@@ -54,64 +54,159 @@ export default function App() {
 
   // get data from api data and upload to the firestore
   // also set the closest bike
-  const getApiData = async () => {
+  // const getApiData = async () => {
+  //   try {
+  //     // console.log("before fetch");
+  //     // fetch data using api
+  //     const response = await fetch(
+  //       "https://data.smartdublin.ie/bleeperbike-api/last_snapshot/"
+  //     );
+  //     // if a code 200 is not responded
+  //     if (!response.ok) {
+  //       throw new Error("Network response error");
+  //     }
+  //     // console.log("after fetch");
+  //     // put into json format
+  //     const data = await response.json();
+  //     setData(data);
+
+  //     let closestDistance = Infinity;
+  //     let checkClosestBike = null;
+
+  //     // Declare currentLat and currentLong
+  //     let currentLat;
+  //     let currentLong;
+
+  //     let prevBike = null;
+
+  //     // for each object returned by the API send a document to Firebase
+  //     data.forEach((item) => {
+  //       try {
+  //         currentLat = location.coords.latitude;
+  //         currentLong = location.coords.longitude;
+
+  //         // calculate the distance between the device and bike
+  //         let newdistance = calculateDistance(
+  //           currentLat,
+  //           currentLong,
+  //           item.lat,
+  //           item.lon
+  //         );
+  //         // console.log(newdistance);
+
+  //         // if the distance is less than the previous closest distance
+  //         // reassign the closest distance and closest bike
+  //         if (newdistance < closestDistance) {
+  //           closestDistance = newdistance;
+  //           checkClosestBike = item;
+  //           // setClosestBike(closestBike);
+  //           console.log(closestDistance);
+  //           // console.log(closestBike.id);
+  //         }
+  //         // console.log("api to firebase complete");
+  //       } catch (error) {
+  //         console.error("error sending data: ", error);
+  //       }
+  //       // console.log("FIIIINNNNNIIIIIITTTTTOOOOOOOOOO");
+  //     });
+
+  //     // PUSH ALL TO FIREBASE
+
+  //     // data.forEach(async (item) => {
+  //     //   const collectionRef = collection(db, "apiData");
+  //     //   try {
+  //     //     const currentTime = new Date();
+  //     //     await addDoc(collectionRef, {
+  //     //       bike_id: item.bike_id,
+  //     //       is_disabled: item.is_disabled,
+  //     //       is_reserved: item.is_reserved,
+  //     //       last_reported: item.last_reported,
+  //     //       lat: item.lat,
+  //     //       lon: item.lon,
+  //     //       timestamp: currentTime,
+  //     //     });
+  //     //   } catch (error) {
+  //     //     console.error("error sending data: ", error);
+  //     //   }
+  //     // });
+
+  //     console.log("Each item completed");
+  //     if (checkClosestBike) {
+  //       // setClosestBike(closestBike);
+  //       // console.log(checkClosestBike);
+  //       return checkClosestBike;
+  //     }
+  //     // return closestBike;
+
+  //     // console.log(data);
+  //   } catch (error) {
+  //     console.error("Error fetching data from API: ", error);
+  //     return null;
+  //   }
+  // };
+
+  // Function to fetch data from the API
+  const fetchApiData = async () => {
     try {
-      // console.log("before fetch");
-      // fetch data using api
       const response = await fetch(
         "https://data.smartdublin.ie/bleeperbike-api/last_snapshot/"
       );
-      // if a code 200 is not responded
+
       if (!response.ok) {
         throw new Error("Network response error");
       }
-      // console.log("after fetch");
-      // put into json format
+
       const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error fetching data from API: ", error);
+      return null;
+    }
+  };
 
-      let closestDistance = Infinity;
-      let closestBike = null;
+  // Function to process the fetched data and find the closest bike
+  const processApiData = (data, location) => {
+    let closestDistance = Infinity;
+    let checkClosestBike = null;
 
-      // Declare currentLat and currentLong
-      let currentLat;
-      let currentLong;
+    let currentLat;
+    let currentLong;
 
-      let prevBike = null;
+    data.forEach((item) => {
+      try {
+        currentLat = location.coords.latitude;
+        currentLong = location.coords.longitude;
 
-      // for each object returned by the API send a document to Firebase
-      data.forEach((item) => {
-        try {
-          currentLat = location.coords.latitude;
-          currentLong = location.coords.longitude;
+        let newdistance = calculateDistance(
+          currentLat,
+          currentLong,
+          item.lat,
+          item.lon
+        );
 
-          // calculate the distance between the device and bike
-          let newdistance = calculateDistance(
-            currentLat,
-            currentLong,
-            item.lat,
-            item.lon
-          );
-          // console.log(newdistance);
-
-          // if the distance is less than the previous closest distance
-          // reassign the closest distance and closest bike
-          if (newdistance < closestDistance) {
-            closestDistance = newdistance;
-            closestBike = item;
-            setClosestBike(closestBike);
-            console.log(closestDistance);
-            // console.log(closestBike.id);
-          }
-          // console.log("api to firebase complete");
-        } catch (error) {
-          console.error("error sending data: ", error);
+        if (newdistance < closestDistance) {
+          closestDistance = newdistance;
+          checkClosestBike = item;
+          console.log(closestDistance);
         }
-        // console.log("FIIIINNNNNIIIIIITTTTTOOOOOOOOOO");
-      });
-      data.forEach(async (item) => {
-        const collectionRef = collection(db, "apiData");
-        try {
-          const currentTime = new Date();
+      } catch (error) {
+        console.error("Error processing data: ", error);
+      }
+    });
+
+    return checkClosestBike;
+  };
+
+  // Function to push data to Firebase
+  const pushDataToFirebase = async (data) => {
+    const collectionRef = collection(db, "apiData");
+
+    try {
+      const currentTime = new Date();
+
+      // Map through the data array and add each item to the Firestore collection
+      await Promise.all(
+        data.map(async (item) => {
           await addDoc(collectionRef, {
             bike_id: item.bike_id,
             is_disabled: item.is_disabled,
@@ -121,35 +216,46 @@ export default function App() {
             lon: item.lon,
             timestamp: currentTime,
           });
-        } catch (error) {
-          console.error("error sending data: ", error);
-        }
-      });
+        })
+      );
 
-      console.log("Each item completed");
-      if (closestBike) {
-        setClosestBike(closestBike);
-        console.log(closestBike);
-        return closestBike;
-      }
-      // return closestBike;
-
-      // console.log(data);
+      console.log("Data sent to Firestore");
     } catch (error) {
-      console.error("Error fetching data from API: ", error);
-      return null;
+      console.error("Error sending data to Firestore: ", error);
     }
   };
 
-  // update the state of the button
+  // Combined function to fetch data, process it, and update state
+  const getApiData = async () => {
+    const data = await fetchApiData();
+    setData(data);
+
+    const closestBike = processApiData(data, location);
+
+    if (closestBike) {
+      setClosestBike(closestBike);
+    }
+
+    return closestBike;
+  };
+
+  // Function to handle the button click
   const fetchApiDataOnClick = async () => {
     setFetchingApiData(true);
     let bike = await getApiData();
-    // console.log("BIKE = " + bike);
-    // setClosestBike(bike);
-    console.log("FINISHED getAPIdata");
+    console.log("BIKE = ", bike?.id);
     setFetchingApiData(false);
   };
+
+  // // update the state of the button
+  // const fetchApiDataOnClick = async () => {
+  //   setFetchingApiData(true);
+  //   let bike = await getApiData();
+  //   console.log("BIKE = " + bike.id);
+  //   setClosestBike(bike);
+  //   console.log("FINISHED getAPIdata");
+  //   setFetchingApiData(false);
+  // };
 
   // send the device data to firebase using addDoc
   const sendLocationToFirebase = async (locationData) => {
@@ -246,8 +352,22 @@ export default function App() {
             }}
             title={`Bike ID: ${closestBike.bike_id}`}
             description={`Reserved: ${closestBike.is_reserved}`}
+            pinColor="red"
           />
         )}
+        {data_test &&
+          data_test.map((bike) => (
+            <Marker
+              key={bike.bike_id} // Make sure to provide a unique key for each Marker
+              coordinate={{
+                latitude: bike.lat,
+                longitude: bike.lon,
+              }}
+              title={`Bike ID: ${bike.bike_id}`}
+              description={`Reserved: ${bike.is_reserved}`}
+              pinColor="green"
+            />
+          ))}
       </MapView>
       {/* </View> */}
       {/* Depending on the state of location, display loading message or the actual data returned from phone */}
@@ -258,7 +378,8 @@ export default function App() {
         Longitude: {location ? location.coords.longitude : "Loading..."}
       </Text>
       <Text> Speed: {location ? location.coords.speed : "Loading..."}</Text>
-      <Text> Time: {location ? location.timestamp : "Loading..."}</Text>
+      <Text> Time: {location ? Date(location.timestamp) : "Loading..."}</Text>
+      {/* <Text>{data_test}</Text> */}
       {/* <Text> {text} </Text> */}
       <StatusBar style="auto" />
     </View>

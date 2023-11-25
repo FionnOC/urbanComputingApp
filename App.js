@@ -80,21 +80,7 @@ export default function App() {
 
       // for each object returned by the API send a document to Firebase
       data.forEach((item) => {
-        // const collectionRef = collection(db, "apiData");
-
         try {
-          //   // get current time
-          //   const currentTime = new Date();
-          //   // await addDoc(collectionRef, {
-          //   //   bike_id: item.bike_id,
-          //   //   is_disabled: item.is_disabled,
-          //   //   is_reserved: item.is_reserved,
-          //   //   last_reported: item.last_reported,
-          //   //   lat: item.lat,
-          //   //   lon: item.lon,
-          //   //   timestamp: currentTime,
-          //   // });
-
           currentLat = location.coords.latitude;
           currentLong = location.coords.longitude;
 

@@ -8,7 +8,6 @@ import { decode } from "@mapbox/polyline";
 
 // firebase
 import { initializeApp } from "firebase/app";
-// import { getAnalytics } from "firebase/analytics";
 import { getFirestore, addDoc, collection } from "firebase/firestore";
 
 // TODO: Add SDKs for Firebase products that you want to use
@@ -67,7 +66,7 @@ export default function App() {
     latitudeDelta: 0.01,
     longitudeDelta: 0.01,
   });
-  const [coords, setCoords] = useState([]);
+  const [directionsBounds, setDirectionsBounds] = useState(null);
   const [directions, setDirections] = useState([]);
 
   const mapRef = useRef(null);
@@ -94,6 +93,42 @@ export default function App() {
       const endLocation = encodeURIComponent(destination);
       const directions = await getDirections(startLocation, endLocation);
       setDirections(directions);
+
+      // Calculate bounds of the directions
+      const bounds = directions.reduce(
+        (acc, cur) => {
+          acc.minLatitude = Math.min(acc.minLatitude, cur.latitude);
+          acc.maxLatitude = Math.max(acc.maxLatitude, cur.latitude);
+          acc.minLongitude = Math.min(acc.minLongitude, cur.longitude);
+          acc.maxLongitude = Math.max(acc.maxLongitude, cur.longitude);
+          return acc;
+        },
+        {
+          minLatitude: Infinity,
+          maxLatitude: -Infinity,
+          minLongitude: Infinity,
+          maxLongitude: -Infinity,
+        }
+      );
+
+      setDirectionsBounds({
+        latitude: (bounds.minLatitude + bounds.maxLatitude) / 2,
+        longitude: (bounds.minLongitude + bounds.maxLongitude) / 2,
+        latitudeDelta: bounds.maxLatitude - bounds.minLatitude + 0.02,
+        longitudeDelta: bounds.maxLongitude - bounds.minLongitude + 0.02,
+      });
+
+      if (directions) {
+        mapRef.current.animateToRegion(
+          {
+            latitude: (bounds.minLatitude + bounds.maxLatitude) / 2,
+            longitude: (bounds.minLongitude + bounds.maxLongitude) / 2,
+            latitudeDelta: bounds.maxLatitude - bounds.minLatitude + 0.01,
+            longitudeDelta: bounds.maxLongitude - bounds.minLongitude + 0.01,
+          },
+          2000
+        );
+      }
     }
   };
 
@@ -305,6 +340,7 @@ export default function App() {
           longitudeDelta: 0.0421,
         }}
         onRegionChangeComplete={(region) => setRegion(region)}
+        // region={directionsBounds || region}
       >
         {/* if the closest bike is assigned, create a marker on the map! */}
         {closestBike && (

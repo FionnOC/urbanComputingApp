@@ -39,7 +39,10 @@ const getDirections = async (startLoc, destinationLoc) => {
       `https://maps.googleapis.com/maps/api/directions/json?origin=${startLoc}&key=${KEY}&destination=${destinationLoc}&mode=bicycling`
     );
     let respJson = await resp.json();
+
     let points = decode(respJson.routes[0].overview_polyline.points);
+    // let duration = respJson.routes[0]?.legs[0]?.duration?.text;
+    // console.log(duration);
     console.log(points);
     let coords = points.map((point, index) => {
       return {
@@ -66,6 +69,7 @@ export default function App() {
     latitudeDelta: 0.01,
     longitudeDelta: 0.01,
   });
+  // const [lengthOfJourney, setLength] = useState(null);
   const [directionsBounds, setDirectionsBounds] = useState(null);
   const [directions, setDirections] = useState([]);
 
@@ -93,6 +97,7 @@ export default function App() {
       const endLocation = encodeURIComponent(destination);
       const directions = await getDirections(startLocation, endLocation);
       setDirections(directions);
+      // setLength(lengthOfJourney);
 
       // Calculate bounds of the directions
       const bounds = directions.reduce(

@@ -1,4 +1,4 @@
- # urbanComputingApp
+ # Urban Computing App
 
 # Mobile App Data Submission to Cloud
 

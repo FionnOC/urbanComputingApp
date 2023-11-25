@@ -31,10 +31,12 @@ const db = getFirestore(app);
 // const analytics = getAnalytics(app);
 
 export default function App() {
+  // set up states and variables
   const [location, setLocation] = useState(null);
   const [fetchingApiData, setFetchingApiData] = useState(false);
   const [closestBike, setClosestBike] = useState(null);
 
+  // calculate distance forumula based on lat lon
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371; // Radius of the Earth in kilometers
     const dLat = (lat2 - lat1) * (Math.PI / 180);
@@ -50,6 +52,8 @@ export default function App() {
     return distance;
   };
 
+  // get data from api data and upload to the firestore
+  // also set the closest bike
   const getApiData = async () => {
     try {
       // console.log("before fetch");
@@ -66,7 +70,7 @@ export default function App() {
       const data = await response.json();
 
       let closestDistance = Infinity;
-      // let closestBike = null;
+      let closestBike = null;
 
       // Declare currentLat and currentLong
       let currentLat;
@@ -75,11 +79,52 @@ export default function App() {
       let prevBike = null;
 
       // for each object returned by the API send a document to Firebase
-      data.forEach(async (item) => {
-        const collectionRef = collection(db, "apiData");
+      data.forEach((item) => {
+        // const collectionRef = collection(db, "apiData");
 
         try {
-          // get current time
+          //   // get current time
+          //   const currentTime = new Date();
+          //   // await addDoc(collectionRef, {
+          //   //   bike_id: item.bike_id,
+          //   //   is_disabled: item.is_disabled,
+          //   //   is_reserved: item.is_reserved,
+          //   //   last_reported: item.last_reported,
+          //   //   lat: item.lat,
+          //   //   lon: item.lon,
+          //   //   timestamp: currentTime,
+          //   // });
+
+          currentLat = location.coords.latitude;
+          currentLong = location.coords.longitude;
+
+          // calculate the distance between the device and bike
+          let newdistance = calculateDistance(
+            currentLat,
+            currentLong,
+            item.lat,
+            item.lon
+          );
+          // console.log(newdistance);
+
+          // if the distance is less than the previous closest distance
+          // reassign the closest distance and closest bike
+          if (newdistance < closestDistance) {
+            closestDistance = newdistance;
+            closestBike = item;
+            setClosestBike(closestBike);
+            console.log(closestDistance);
+            // console.log(closestBike.id);
+          }
+          // console.log("api to firebase complete");
+        } catch (error) {
+          console.error("error sending data: ", error);
+        }
+        // console.log("FIIIINNNNNIIIIIITTTTTOOOOOOOOOO");
+      });
+      data.forEach(async (item) => {
+        const collectionRef = collection(db, "apiData");
+        try {
           const currentTime = new Date();
           await addDoc(collectionRef, {
             bike_id: item.bike_id,
@@ -90,45 +135,17 @@ export default function App() {
             lon: item.lon,
             timestamp: currentTime,
           });
-
-          currentLat = location.coords.latitude;
-          currentLong = location.coords.longitude;
-
-          // calculate the distance between the device and bike
-          newdistance = calculateDistance(
-            currentLat,
-            currentLong,
-            item.lat,
-            item.lon
-          );
-
-          // if the distance is less than the previous closest distance
-          // reassign the closest distance and closest bike
-          if (newdistance < closestDistance) {
-            closestDistance = newdistance;
-            closestBike = item;
-            setClosestBike(closestBike);
-            console.log(closestBike.id);
-          }
-
-          if (closestBike != prevBike) {
-            // console.log(closestBike.id);
-            // console.log("Lat: " + closestBike.lat);
-            // console.log("Lon: " + closestBike.lon);
-            // console.log("Is reserved : " + closestBike.is_reserved);
-            // console.log("Last reported : " + closestBike.last_reported);
-            prevBike = closestBike;
-          }
-          // console.log("api to firebase complete");
         } catch (error) {
           console.error("error sending data: ", error);
         }
-        // console.log("FIIIINNNNNIIIIIITTTTTOOOOOOOOOO");
       });
 
-      // if (closestBike) {
-      //   return closestBike;
-      // }
+      console.log("Each item completed");
+      if (closestBike) {
+        setClosestBike(closestBike);
+        console.log(closestBike);
+        return closestBike;
+      }
       // return closestBike;
 
       // console.log(data);
@@ -235,18 +252,7 @@ export default function App() {
         }}
       >
         {/* if the closest bike is assigned, create a marker on the map! */}
-        {/* {closestBike && (
-          <Marker
-            coordinate={{
-              latitude: 53.3498,
-              longitude: -6.2603,
-            }}
-            title={"Hello there"}
-          />
-        )}
-        */}
-
-        {/* {closestBike && (
+        {closestBike && (
           <Marker
             coordinate={{
               latitude: closestBike.lat,
@@ -255,7 +261,7 @@ export default function App() {
             title={`Bike ID: ${closestBike.bike_id}`}
             description={`Reserved: ${closestBike.is_reserved}`}
           />
-        )} */}
+        )}
       </MapView>
       {/* </View> */}
       {/* Depending on the state of location, display loading message or the actual data returned from phone */}

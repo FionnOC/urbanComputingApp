@@ -46,6 +46,9 @@ export default function App() {
   const [data_test, setData] = useState([]);
   const [data_dub_bikes, setDublinData] = useState([]);
   const [destination, setDestination] = useState("");
+
+  const [closestBikeState, setClosestState] = useState(false);
+
   const [region, setRegion] = useState({
     latitude: 53.3498,
     longitude: -6.2603,
@@ -100,7 +103,13 @@ export default function App() {
 
   const onClickGetDirections = async () => {
     if (closestBike && destination) {
-      const startLocation = `${closestBike.lat}, ${closestBike.lon}`;
+      let startLocation = "";
+      if (closestBikeState == true) {
+        startLocation = closestBike.latitude + ", " + closestBike.longitude;
+      } else {
+        startLocation = `${closestBike.lat}, ${closestBike.lon}`;
+      }
+      // const startLocation = `${closestBike.lat}, ${closestBike.lon}`;
       const endLocation = encodeURIComponent(destination);
       const directions = await getDirections(startLocation, endLocation);
       console.log(directions);
@@ -208,6 +217,7 @@ export default function App() {
           closestDistance = newdistance;
           checkClosestBike = item;
           console.log(closestDistance);
+          setClosestState(false);
         }
       } catch (error) {
         console.error("Error processing data: ", error);
@@ -222,19 +232,22 @@ export default function App() {
         let newdistance = calculateDistance(
           currentLat,
           currentLong,
-          item.latitude,
-          item.longitude
+          parseFloat(item.latitude),
+          parseFloat(item.longitude)
         );
 
         if (newdistance < closestDistance) {
           closestDistance = newdistance;
           checkClosestBike = item;
           console.log("Dublin bike" + closestDistance);
+          setClosestState(true);
         }
       } catch (error) {
         console.error("Error processing data: ", error);
       }
     });
+
+    console.log(checkClosestBike);
 
     return checkClosestBike;
   };
@@ -378,26 +391,31 @@ export default function App() {
         }}
         onRegionChangeComplete={(region) => setRegion(region)}
       >
-        {closestBike && (
-          <Marker
-            coordinate={{
-              latitude: closestBike.lat,
-              longitude: closestBike.lon,
-            }}
-            title={`Bike ID: ${closestBike.bike_id}`}
-            description={`Reserved: ${closestBike.is_reserved}`}
-            pinColor="red"
-          />
-        )}
         {location && (
           <Marker
             coordinate={{
               latitude: location.coords.latitude,
               longitude: location.coords.longitude,
             }}
+            title="Current Location"
             pinColor="green"
           />
         )}
+        {closestBike && (
+          <Marker
+            coordinate={{
+              latitude: closestBikeState
+                ? parseFloat(closestBike.latitude)
+                : closestBike.lat,
+              longitude: closestBikeState
+                ? parseFloat(closestBike.longitude)
+                : closestBike.lon,
+            }}
+            pinColor="red"
+            title="Closest Bike"
+          />
+        )}
+
         {data_test &&
           data_test.map((bike) => (
             <Circle
@@ -423,7 +441,7 @@ export default function App() {
               strokeWidth={1}
               radius={30}
               fillColor={"red"}
-              strokeColor={"#1a66ff"}
+              strokeColor={"red"}
             />
           ))}
         {directions.length > 0 && (

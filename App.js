@@ -185,7 +185,7 @@ export default function App() {
   };
 
   // Function to process the fetched data and find the closest bike
-  const processApiData = (data, location) => {
+  const processApiData = (data, dubData, location) => {
     let closestDistance = Infinity;
     let checkClosestBike = null;
 
@@ -208,6 +208,28 @@ export default function App() {
           closestDistance = newdistance;
           checkClosestBike = item;
           console.log(closestDistance);
+        }
+      } catch (error) {
+        console.error("Error processing data: ", error);
+      }
+    });
+
+    dubData.forEach((item) => {
+      try {
+        currentLat = location.coords.latitude;
+        currentLong = location.coords.longitude;
+
+        let newdistance = calculateDistance(
+          currentLat,
+          currentLong,
+          item.latitude,
+          item.longitude
+        );
+
+        if (newdistance < closestDistance) {
+          closestDistance = newdistance;
+          checkClosestBike = item;
+          console.log("Dublin bike" + closestDistance);
         }
       } catch (error) {
         console.error("Error processing data: ", error);
@@ -251,7 +273,7 @@ export default function App() {
     setData(data);
     setDublinData(dublinData);
 
-    const closestBike = processApiData(data, location);
+    const closestBike = processApiData(data, dublinData, location);
 
     if (closestBike) {
       setClosestBike(closestBike);
@@ -365,6 +387,15 @@ export default function App() {
             title={`Bike ID: ${closestBike.bike_id}`}
             description={`Reserved: ${closestBike.is_reserved}`}
             pinColor="red"
+          />
+        )}
+        {location && (
+          <Marker
+            coordinate={{
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+            }}
+            pinColor="green"
           />
         )}
         {data_test &&

@@ -1,11 +1,18 @@
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, Text, View, Button, TextInput } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View,
+  Button,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { useState, useEffect, useRef } from "react";
 import * as Location from "expo-location";
-import MapView, { Marker, Polyline } from "react-native-maps";
+import MapView, { Circle, Marker, Polyline } from "react-native-maps";
 
 import { decode } from "@mapbox/polyline";
-
 // firebase
 import { initializeApp } from "firebase/app";
 import { getFirestore, addDoc, collection } from "firebase/firestore";
@@ -31,37 +38,13 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 // const analytics = getAnalytics(app);
 
-const getDirections = async (startLoc, destinationLoc) => {
-  try {
-    const KEY = "AIzaSyD4Ggrwk8hQsaw_tjciJ63YEev2aV1ae84"; //put your API key here.
-    //otherwise, you'll have an 'unauthorized' error.
-    let resp = await fetch(
-      `https://maps.googleapis.com/maps/api/directions/json?origin=${startLoc}&key=${KEY}&destination=${destinationLoc}&mode=bicycling`
-    );
-    let respJson = await resp.json();
-
-    let points = decode(respJson.routes[0].overview_polyline.points);
-    // let duration = respJson.routes[0]?.legs[0]?.duration?.text;
-    // console.log(duration);
-    console.log(points);
-    let coords = points.map((point, index) => {
-      return {
-        latitude: point[0],
-        longitude: point[1],
-      };
-    });
-    return coords;
-  } catch (error) {
-    return error;
-  }
-};
-
 export default function App() {
   // set up states and variables
   const [location, setLocation] = useState(null);
   const [fetchingApiData, setFetchingApiData] = useState(false);
   const [closestBike, setClosestBike] = useState(null);
   const [data_test, setData] = useState([]);
+  const [data_dub_bikes, setDublinData] = useState([]);
   const [destination, setDestination] = useState("");
   const [region, setRegion] = useState({
     latitude: 53.3498,
@@ -69,7 +52,7 @@ export default function App() {
     latitudeDelta: 0.01,
     longitudeDelta: 0.01,
   });
-  // const [lengthOfJourney, setLength] = useState(null);
+  const [lengthOfJourney, setLength] = useState("");
   const [directionsBounds, setDirectionsBounds] = useState(null);
   const [directions, setDirections] = useState([]);
 
@@ -91,13 +74,39 @@ export default function App() {
     return distance;
   };
 
+  const getDirections = async (startLoc, destinationLoc) => {
+    try {
+      const KEY = "AIzaSyD4Ggrwk8hQsaw_tjciJ63YEev2aV1ae84"; //put your API key here.
+      //otherwise, you'll have an 'unauthorized' error.
+      let resp = await fetch(
+        `https://maps.googleapis.com/maps/api/directions/json?origin=${startLoc}&key=${KEY}&destination=${destinationLoc}&mode=bicycling`
+      );
+      let respJson = await resp.json();
+
+      let points = decode(respJson.routes[0].overview_polyline.points);
+
+      let coords = points.map((point, index) => {
+        return {
+          latitude: point[0],
+          longitude: point[1],
+        };
+      });
+      // console.log(coords);
+      return coords;
+    } catch (error) {
+      return error;
+    }
+  };
+
   const onClickGetDirections = async () => {
     if (closestBike && destination) {
       const startLocation = `${closestBike.lat}, ${closestBike.lon}`;
       const endLocation = encodeURIComponent(destination);
       const directions = await getDirections(startLocation, endLocation);
+      console.log(directions);
+
       setDirections(directions);
-      // setLength(lengthOfJourney);
+      // setLength(duration2);
 
       // Calculate bounds of the directions
       const bounds = directions.reduce(
@@ -142,6 +151,25 @@ export default function App() {
     try {
       const response = await fetch(
         "https://data.smartdublin.ie/bleeperbike-api/last_snapshot/"
+      );
+
+      if (!response.ok) {
+        throw new Error("Network response error");
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error fetching data from API: ", error);
+      return null;
+    }
+  };
+
+  // Function to fetch data from the API
+  const fetchDublinBikesApiData = async () => {
+    try {
+      const response = await fetch(
+        "https://data.smartdublin.ie/dublinbikes-api/last_snapshot/"
       );
 
       if (!response.ok) {
@@ -219,7 +247,9 @@ export default function App() {
   // Combined function to fetch data, process it, and update state
   const getApiData = async () => {
     const data = await fetchApiData();
+    const dublinData = await fetchDublinBikesApiData();
     setData(data);
+    setDublinData(dublinData);
 
     const closestBike = processApiData(data, location);
 
@@ -236,6 +266,7 @@ export default function App() {
   const fetchApiDataOnClick = async () => {
     setFetchingApiData(true);
     let bike = await getApiData();
+
     console.log("BIKE = ", bike?.id);
     setFetchingApiData(false);
   };
@@ -314,29 +345,6 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter destination:"
-        value={destination}
-        onChangeText={(text) => setDestination(text)}
-      />
-      {closestBike && destination && (
-        <Button
-          style={(styles.button, styles.directionsButton)}
-          title="Get Directions"
-          onPress={onClickGetDirections}
-          // disabled={!closestBike || !destination}
-        />
-      )}
-      <Button
-        style={styles.button}
-        title="Fetch API Data"
-        onPress={fetchApiDataOnClick}
-        disabled={fetchingApiData}
-      />
-      {/* Display loading message if fetching data */}
-      {fetchingApiData && <Text>Loading API data...</Text>}
-      {/* <View style={{ flex: 1, width: "100%" }}> */}
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -347,9 +355,7 @@ export default function App() {
           longitudeDelta: 0.0421,
         }}
         onRegionChangeComplete={(region) => setRegion(region)}
-        // region={directionsBounds || region}
       >
-        {/* if the closest bike is assigned, create a marker on the map! */}
         {closestBike && (
           <Marker
             coordinate={{
@@ -361,19 +367,34 @@ export default function App() {
             pinColor="red"
           />
         )}
-        {/* {data_test &&
+        {data_test &&
           data_test.map((bike) => (
-            <Marker
-              key={bike.bike_id} // Make sure to provide a unique key for each Marker
-              coordinate={{
+            <Circle
+              key={bike.bike_id}
+              center={{
                 latitude: bike.lat,
                 longitude: bike.lon,
               }}
-              title={`Bike ID: ${bike.bike_id}`}
-              description={`Reserved: ${bike.is_reserved}`}
-              pinColor="green"
+              strokeWidth={1}
+              radius={15}
+              fillColor={"blue"}
+              strokeColor={"#1a66ff"}
             />
-          ))} */}
+          ))}
+        {data_dub_bikes &&
+          data_dub_bikes.map((dubBike) => (
+            <Circle
+              key={dubBike.id}
+              center={{
+                latitude: parseFloat(dubBike.latitude),
+                longitude: parseFloat(dubBike.longitude),
+              }}
+              strokeWidth={1}
+              radius={30}
+              fillColor={"red"}
+              strokeColor={"#1a66ff"}
+            />
+          ))}
         {directions.length > 0 && (
           <Polyline
             coordinates={directions}
@@ -382,39 +403,43 @@ export default function App() {
           />
         )}
       </MapView>
-      {closestBike && (
+      <TextInput
+        style={styles.input}
+        placeholder="Enter destination:"
+        value={destination}
+        onChangeText={(text) => setDestination(text)}
+      />
+      {closestBike && destination && (
         <Button
-          style={styles.button}
-          onPress={() => goToClosestBike()}
-          title="Show me the closest bike ..."
+          style={(styles.button, styles.directionsButton)}
+          title="Get Directions"
+          onPress={onClickGetDirections}
         />
       )}
-
-      {/* </View> */}
-      {/* Depending on the state of location, display loading message or the actual data returned from phone */}
+      <Button
+        style={styles.button}
+        title="Fetch API Data"
+        onPress={fetchApiDataOnClick}
+        disabled={fetchingApiData}
+      />
+      {fetchingApiData && <Text>Loading API data...</Text>}
+      <Button
+        style={styles.button}
+        onPress={() => goToClosestBike()}
+        title="Show me the closest bike ..."
+      />
       <Text>
         Latitude: {location ? location.coords.latitude : "Loading..."}
       </Text>
       <Text>
         Longitude: {location ? location.coords.longitude : "Loading..."}
       </Text>
-      <Text> Speed: {location ? location.coords.speed : "Loading..."}</Text>
-      <Text> Time: {location ? Date(location.timestamp) : "Loading..."}</Text>
-      {/* <Text>{data_test}</Text> */}
-      {/* <Text> {text} </Text> */}
+      {/* <Text>Speed: {location ? location.coords.speed : "Loading..."}</Text>
+      <Text>Time: {location ? Date(location.timestamp) : "Loading..."}</Text> */}
       <StatusBar style="auto" />
     </View>
   );
 }
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     backgroundColor: "#fff",
-//     alignItems: "center",
-//     justifyContent: "center",
-//   },
-// });
 
 const styles = StyleSheet.create({
   container: {
@@ -423,15 +448,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 16, // Add some padding to the container
+    marginVertical: 20,
   },
   input: {
     height: 40,
     borderColor: "gray",
     borderWidth: 1,
-    marginBottom: 16, // Add margin at the bottom of the input
+    // marginBottom: 16, // Add margin at the bottom of the input
     paddingHorizontal: 8, // Add horizontal padding
-    width: "100%", // Make the input take the full width
-    marginTop: 36,
+    width: "80%", // Make the input take the full width
+    top: 50,
+    position: "absolute",
+    zIndex: 1, // Place the input box above the map
+    backgroundColor: "white", // Set a background color for the input box
   },
   directionsButton: {
     marginVertical: 16, // Adjust this value based on the amount of space you want
@@ -439,6 +468,7 @@ const styles = StyleSheet.create({
 
   button: {
     marginVertical: 8, // Add vertical margin to the buttons
+    // marginBottom: 16,
     width: "100%", // Make the buttons take the full width
   },
   map: {

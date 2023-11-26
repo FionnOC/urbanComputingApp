@@ -86,16 +86,16 @@ export default function App() {
       );
       let respJson = await resp.json();
 
-      let points = decode(respJson.routes[0].overview_polyline.points);
+      // let points = decode(respJson.routes[0].overview_polyline.points);
 
-      let coords = points.map((point, index) => {
-        return {
-          latitude: point[0],
-          longitude: point[1],
-        };
-      });
+      // let coords = points.map((point, index) => {
+      //   return {
+      //     latitude: point[0],
+      //     longitude: point[1],
+      //   };
+      // });
       // console.log(coords);
-      return coords;
+      return respJson;
     } catch (error) {
       return error;
     }
@@ -111,14 +111,28 @@ export default function App() {
       }
       // const startLocation = `${closestBike.lat}, ${closestBike.lon}`;
       const endLocation = encodeURIComponent(destination);
-      const directions = await getDirections(startLocation, endLocation);
-      console.log(directions);
+      const response = await getDirections(startLocation, endLocation);
 
-      setDirections(directions);
-      // setLength(duration2);
+      // edit this to extract directions and duration here?
+
+      let points = decode(response.routes[0].overview_polyline.points);
+
+      let length = response.routes[0].legs[0].duration.text;
+
+      let coords = points.map((point, index) => {
+        return {
+          latitude: point[0],
+          longitude: point[1],
+        };
+      });
+
+      // console.log(directions);
+
+      setDirections(coords);
+      setLength(length);
 
       // Calculate bounds of the directions
-      const bounds = directions.reduce(
+      const bounds = coords.reduce(
         (acc, cur) => {
           acc.minLatitude = Math.min(acc.minLatitude, cur.latitude);
           acc.maxLatitude = Math.max(acc.maxLatitude, cur.latitude);
@@ -366,8 +380,14 @@ export default function App() {
     if (closestBike) {
       mapRef.current.animateToRegion(
         {
-          latitude: closestBike.lat,
-          longitude: closestBike.lon,
+          //latitude: closestBike.lat,
+          latitude: closestBikeState
+            ? parseFloat(closestBike.latitude)
+            : closestBike.lat,
+          // longitude: closestBike.lon,
+          longitude: closestBikeState
+            ? parseFloat(closestBike.longitude)
+            : closestBike.lon,
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
         },
@@ -483,8 +503,7 @@ export default function App() {
       <Text>
         Longitude: {location ? location.coords.longitude : "Loading..."}
       </Text>
-      {/* <Text>Speed: {location ? location.coords.speed : "Loading..."}</Text>
-      <Text>Time: {location ? Date(location.timestamp) : "Loading..."}</Text> */}
+      {lengthOfJourney && <Text>Time to get there: {lengthOfJourney}</Text>}
       <StatusBar style="auto" />
     </View>
   );

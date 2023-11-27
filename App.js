@@ -1,18 +1,15 @@
 import { StatusBar } from "expo-status-bar";
-import {
-  StyleSheet,
-  Text,
-  View,
-  Button,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-} from "react-native";
+import { StyleSheet, Text, View, Button, TextInput } from "react-native";
 import { useState, useEffect, useRef } from "react";
 import * as Location from "expo-location";
 import MapView, { Circle, Marker, Polyline } from "react-native-maps";
 
 import { decode } from "@mapbox/polyline";
+
+import {
+  calculateDistance,
+  calculateLineColor,
+} from "./functions/calculations";
 // firebase
 import { initializeApp } from "firebase/app";
 import { getFirestore, addDoc, collection } from "firebase/firestore";
@@ -61,22 +58,6 @@ export default function App() {
 
   const mapRef = useRef(null);
 
-  // calculate distance forumula based on lat lon
-  const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371; // Radius of the Earth in kilometers
-    const dLat = (lat2 - lat1) * (Math.PI / 180);
-    const dLon = (lon2 - lon1) * (Math.PI / 180);
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * (Math.PI / 180)) *
-        Math.cos(lat2 * (Math.PI / 180)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distance = R * c; // Distance in kilometers
-    return distance;
-  };
-
   const getDirections = async (startLoc, destinationLoc) => {
     try {
       const KEY = "AIzaSyD4Ggrwk8hQsaw_tjciJ63YEev2aV1ae84"; //put your API key here.
@@ -119,7 +100,7 @@ export default function App() {
 
       let length = response.routes[0].legs[0].duration.text;
 
-      let coords = points.map((point, index) => {
+      let directions = points.map((point, index) => {
         return {
           latitude: point[0],
           longitude: point[1],
@@ -128,11 +109,11 @@ export default function App() {
 
       // console.log(directions);
 
-      setDirections(coords);
+      setDirections(directions);
       setLength(length);
 
       // Calculate bounds of the directions
-      const bounds = coords.reduce(
+      const bounds = directions.reduce(
         (acc, cur) => {
           acc.minLatitude = Math.min(acc.minLatitude, cur.latitude);
           acc.maxLatitude = Math.max(acc.maxLatitude, cur.latitude);
@@ -344,9 +325,6 @@ export default function App() {
       let currentLocation = await Location.getCurrentPositionAsync({});
       setLocation(currentLocation);
       console.log(currentLocation);
-
-      // send location data to firebase
-      sendLocationToFirebase(currentLocation);
     } catch (error) {
       console.log("Error: ", error);
     }
@@ -467,8 +445,8 @@ export default function App() {
         {directions.length > 0 && (
           <Polyline
             coordinates={directions}
-            strokeWidth={3}
-            strokeColor="blue"
+            strokeWidth={5}
+            strokeColor={calculateLineColor(directions.length)}
           />
         )}
       </MapView>
@@ -478,32 +456,43 @@ export default function App() {
         value={destination}
         onChangeText={(text) => setDestination(text)}
       />
-      {closestBike && destination && (
-        <Button
-          style={(styles.button, styles.directionsButton)}
-          title="Get Directions"
-          onPress={onClickGetDirections}
-        />
-      )}
-      <Button
-        style={styles.button}
-        title="Fetch API Data"
-        onPress={fetchApiDataOnClick}
-        disabled={fetchingApiData}
-      />
-      {fetchingApiData && <Text>Loading API data...</Text>}
-      <Button
-        style={styles.button}
-        onPress={() => goToClosestBike()}
-        title="Show me the closest bike ..."
-      />
-      <Text>
-        Latitude: {location ? location.coords.latitude : "Loading..."}
-      </Text>
-      <Text>
-        Longitude: {location ? location.coords.longitude : "Loading..."}
-      </Text>
-      {lengthOfJourney && <Text>Time to get there: {lengthOfJourney}</Text>}
+      <View style={styles.bottomContainer}>
+        {closestBike && destination && (
+          <Button
+            style={styles.button}
+            title="Get Directions"
+            onPress={onClickGetDirections}
+          />
+        )}
+        <View style={styles.box}>
+          <Button
+            style={styles.button}
+            title="Fetch API Data"
+            onPress={fetchApiDataOnClick}
+            disabled={fetchingApiData}
+          />
+        </View>
+        {fetchingApiData && (
+          <Text style={styles.text}>Loading API data...</Text>
+        )}
+        <View style={styles.box}>
+          <Button
+            style={styles.button}
+            onPress={() => goToClosestBike()}
+            title="Closest bike"
+          />
+        </View>
+        <Text style={styles.text}>
+          Latitude: {location ? location.coords.latitude : "Loading..."}
+        </Text>
+        <Text style={styles.text}>
+          Longitude: {location ? location.coords.longitude : "Loading..."}
+        </Text>
+        {lengthOfJourney && (
+          <Text style={styles.journeyLength}>{lengthOfJourney}</Text>
+        )}
+        {/* {directions && <Text style={styles.journeyLength}>{directions.length}</Text>} */}
+      </View>
       <StatusBar style="auto" />
     </View>
   );
@@ -512,36 +501,36 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 16, // Add some padding to the container
-    marginVertical: 20,
+  },
+  bottomContainer: {
+    flex: 0.3,
   },
   input: {
-    height: 40,
+    alignSelf: "center",
+    height: 50,
     borderColor: "gray",
     borderWidth: 1,
     // marginBottom: 16, // Add margin at the bottom of the input
     paddingHorizontal: 8, // Add horizontal padding
     width: "80%", // Make the input take the full width
-    top: 50,
+    top: 60,
     position: "absolute",
     zIndex: 1, // Place the input box above the map
     backgroundColor: "white", // Set a background color for the input box
   },
-  directionsButton: {
-    marginVertical: 16, // Adjust this value based on the amount of space you want
-  },
-
-  button: {
-    marginVertical: 8, // Add vertical margin to the buttons
-    // marginBottom: 16,
-    width: "100%", // Make the buttons take the full width
-  },
   map: {
-    flex: 1,
-    width: "100%",
-    marginBottom: 16, // Add margin at the bottom of the map
+    flex: 0.7,
   },
+  box: { flexDirection: "row", alignSelf: "center", paddingVertical: 10 },
+  button: { marginVertical: 16, marginHorizontal: 10 },
+  text: {
+    paddingBottom: 8,
+    alignSelf: "center",
+  },
+  journeyLength: { alignSelf: "center", fontWeight: "bold", fontSize: 32 },
+  // timing: {
+  //   alignSelf: "center",
+  //   fontWeight: "bold",
+  //   fontSize: "24",
+  // },
 });

@@ -14,12 +14,6 @@ import {
 import { initializeApp } from "firebase/app";
 import { getFirestore, addDoc, collection } from "firebase/firestore";
 
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-
 const firebaseConfig = {
   apiKey: "AIzaSyD4Ggrwk8hQsaw_tjciJ63YEev2aV1ae84",
   authDomain: "urban-computing-oconnof9.firebaseapp.com",
@@ -60,22 +54,12 @@ export default function App() {
 
   const getDirections = async (startLoc, destinationLoc) => {
     try {
-      const KEY = "AIzaSyD4Ggrwk8hQsaw_tjciJ63YEev2aV1ae84"; //put your API key here.
-      //otherwise, you'll have an 'unauthorized' error.
+      const KEY = "AIzaSyD4Ggrwk8hQsaw_tjciJ63YEev2aV1ae84";
       let resp = await fetch(
         `https://maps.googleapis.com/maps/api/directions/json?origin=${startLoc}&key=${KEY}&destination=${destinationLoc}&mode=bicycling`
       );
       let respJson = await resp.json();
 
-      // let points = decode(respJson.routes[0].overview_polyline.points);
-
-      // let coords = points.map((point, index) => {
-      //   return {
-      //     latitude: point[0],
-      //     longitude: point[1],
-      //   };
-      // });
-      // console.log(coords);
       return respJson;
     } catch (error) {
       return error;
@@ -90,11 +74,8 @@ export default function App() {
       } else {
         startLocation = `${closestBike.lat}, ${closestBike.lon}`;
       }
-      // const startLocation = `${closestBike.lat}, ${closestBike.lon}`;
       const endLocation = encodeURIComponent(destination);
       const response = await getDirections(startLocation, endLocation);
-
-      // edit this to extract directions and duration here?
 
       let points = decode(response.routes[0].overview_polyline.points);
 
@@ -106,8 +87,6 @@ export default function App() {
           longitude: point[1],
         };
       });
-
-      // console.log(directions);
 
       setDirections(directions);
       setLength(length);
@@ -287,7 +266,7 @@ export default function App() {
       setClosestBike(closestBike);
     }
 
-    // pushDataToFirebase(data);
+    pushDataToFirebase(data);
 
     return closestBike;
   };
@@ -325,6 +304,8 @@ export default function App() {
       let currentLocation = await Location.getCurrentPositionAsync({});
       setLocation(currentLocation);
       console.log(currentLocation);
+
+      sendLocationToFirebase(currentLocation);
     } catch (error) {
       console.log("Error: ", error);
     }
@@ -510,13 +491,12 @@ const styles = StyleSheet.create({
     height: 50,
     borderColor: "gray",
     borderWidth: 1,
-    // marginBottom: 16, // Add margin at the bottom of the input
-    paddingHorizontal: 8, // Add horizontal padding
-    width: "80%", // Make the input take the full width
+    paddingHorizontal: 8,
+    width: "80%",
     top: 60,
     position: "absolute",
-    zIndex: 1, // Place the input box above the map
-    backgroundColor: "white", // Set a background color for the input box
+    zIndex: 1,
+    backgroundColor: "white",
   },
   map: {
     flex: 0.7,
@@ -528,9 +508,4 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   journeyLength: { alignSelf: "center", fontWeight: "bold", fontSize: 32 },
-  // timing: {
-  //   alignSelf: "center",
-  //   fontWeight: "bold",
-  //   fontSize: "24",
-  // },
 });

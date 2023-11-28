@@ -10,7 +10,7 @@ Before running the app on your machine, make sure you have the following prerequ
 
 - Node.js and npm
 - Expo: You can install it using npm: `npm install -g expo-cli`
-- Firebase Account: You'll need to set up a Firebase project and obtain the configuration details to put into your project. I am not sure if the ones I have in for myself will work for another user.
+- Firebase Account: You'll need to set up a Firebase project and obtain the configuration details to put into your project. I am not sure if the ones I have in for myself will work for another user, but I have left them in anyway
 
 ## Setup
 
@@ -22,7 +22,7 @@ Before running the app on your machine, make sure you have the following prerequ
    npm install
    ```
 
-3. Potentially create a Firebase project and insert your own firebaseConfig in App.js
+3. Potentially create a Firebase project and insert your own firebaseConfig in App.js if my details do not work
 
 4. Run the project using:
 
@@ -30,4 +30,4 @@ Before running the app on your machine, make sure you have the following prerequ
    expo start
    ```
 
-5. I used Expo Go on my mobile phone to scan the presented QR code to run and test the app.
+5. I used Expo Go on my mobile phone to scan the presented QR code to run and test the app. However, you can use a simulator on your laptop as well.

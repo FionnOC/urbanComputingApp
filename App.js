@@ -5,11 +5,6 @@ import * as Location from "expo-location";
 import MapView, { Circle, Marker, Polyline } from "react-native-maps";
 
 import { decode } from "@mapbox/polyline";
-
-import {
-  calculateDistance,
-  calculateLineColor,
-} from "./functions/calculations";
 // firebase
 import { initializeApp } from "firebase/app";
 import { getFirestore, addDoc, collection } from "firebase/firestore";
@@ -27,14 +22,13 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-// const analytics = getAnalytics(app);
 
 export default function App() {
   // set up states and variables
   const [location, setLocation] = useState(null);
   const [fetchingApiData, setFetchingApiData] = useState(false);
   const [closestBike, setClosestBike] = useState(null);
-  const [data_test, setData] = useState([]);
+  const [data_bleeper, setData] = useState([]);
   const [data_dub_bikes, setDublinData] = useState([]);
   const [destination, setDestination] = useState("");
   const [finalLocation, setFinalCoordinate] = useState({});
@@ -49,12 +43,38 @@ export default function App() {
   });
   const [lengthOfJourney, setLength] = useState("");
   const [lengthwalk, setWalkLength] = useState("");
-  const [directionsBounds, setDirectionsBounds] = useState(null);
   const [directions, setDirections] = useState([]);
   const [walkingDirections, setWalkingDirections] = useState([]);
 
   const mapRef = useRef(null);
 
+  const calculateLineColor = (length) => {
+    const maxLength = 130; // Set a maximum length for the gradient
+    const hue = 120 - (Math.min(length, maxLength) / maxLength) * 120; // Convert to hue value (green to red)
+    return `hsl(${hue}, 100%, 50%)`;
+  };
+
+  // implementation of the haversine formula
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const radiusOfEarth = 6371; // Radius of the Earth in kilometers
+
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+
+    // Haversine formula
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * (Math.PI / 180)) *
+        Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = radiusOfEarth * c; // Distance in kilometers
+    return distance;
+  };
+
+  // fetches cycling Directions from Google Maps Directions API
   const getDirections = async (startLoc, destinationLoc) => {
     try {
       const KEY = "AIzaSyD4Ggrwk8hQsaw_tjciJ63YEev2aV1ae84";
@@ -69,6 +89,7 @@ export default function App() {
     }
   };
 
+  // fetches walking Directions from Google Maps Directions API
   const getDirectionsWalking = async (startLoc, destinationLoc) => {
     try {
       const KEY = "AIzaSyD4Ggrwk8hQsaw_tjciJ63YEev2aV1ae84";
@@ -83,6 +104,7 @@ export default function App() {
     }
   };
 
+  // When the button is pressed, call on the direction functions and set state of directions and length of journeys
   const onClickGetDirections = async () => {
     if (closestBike && destination) {
       let startLocation = "";
@@ -132,9 +154,6 @@ export default function App() {
           longitude: point[1],
         };
       });
-
-      console.log("walking points should be found by here");
-
       setDirections(directions);
       setWalkingDirections(walkingDirections);
       setLength(length);
@@ -157,13 +176,6 @@ export default function App() {
         }
       );
 
-      setDirectionsBounds({
-        latitude: (bounds.minLatitude + bounds.maxLatitude) / 2,
-        longitude: (bounds.minLongitude + bounds.maxLongitude) / 2,
-        latitudeDelta: bounds.maxLatitude - bounds.minLatitude + 0.02,
-        longitudeDelta: bounds.maxLongitude - bounds.minLongitude + 0.02,
-      });
-
       if (directions) {
         mapRef.current.animateToRegion(
           {
@@ -178,7 +190,7 @@ export default function App() {
     }
   };
 
-  // Function to fetch data from the API
+  // Function to fetch data from the Bleeper Bike API
   const fetchApiData = async () => {
     try {
       const response = await fetch(
@@ -197,7 +209,7 @@ export default function App() {
     }
   };
 
-  // Function to fetch data from the API
+  // Function to fetch data from the Dublin Bikes API
   const fetchDublinBikesApiData = async () => {
     try {
       const response = await fetch(
@@ -275,7 +287,7 @@ export default function App() {
     return checkClosestBike;
   };
 
-  // Function to push data to Firebase
+  // Function to push bike data to Firebase
   const pushDataToFirebase = async (data) => {
     try {
       data.forEach(async (item) => {
@@ -302,7 +314,7 @@ export default function App() {
     }
   };
 
-  // Combined function to fetch data, process it, and update state
+  // Combined function to fetch data, process it, and update state of closest bike
   const getApiData = async () => {
     const data = await fetchApiData();
     const dublinData = await fetchDublinBikesApiData();
@@ -315,12 +327,12 @@ export default function App() {
       setClosestBike(closestBike);
     }
 
-    // pushDataToFirebase(data);
+    pushDataToFirebase(data);
 
     return closestBike;
   };
 
-  // Function to handle the button click
+  // Function to handle the fetch data button click
   const fetchApiDataOnClick = async () => {
     setFetchingApiData(true);
     let bike = await getApiData();
@@ -348,6 +360,7 @@ export default function App() {
     console.log("Finished sending location to firebase");
   };
 
+  // get location of user
   const getCurrentLocation = async () => {
     try {
       let currentLocation = await Location.getCurrentPositionAsync({});
@@ -384,15 +397,14 @@ export default function App() {
     })();
   }, []);
 
+  // animation to go to the closest bike and zoom in
   const goToClosestBike = () => {
     if (closestBike) {
       mapRef.current.animateToRegion(
         {
-          //latitude: closestBike.lat,
           latitude: closestBikeState
             ? parseFloat(closestBike.latitude)
             : closestBike.lat,
-          // longitude: closestBike.lon,
           longitude: closestBikeState
             ? parseFloat(closestBike.longitude)
             : closestBike.lon,
@@ -406,6 +418,7 @@ export default function App() {
 
   text = JSON.stringify(location);
 
+  // render on the device.
   return (
     <View style={styles.container}>
       <MapView
@@ -444,8 +457,8 @@ export default function App() {
           />
         )}
 
-        {data_test &&
-          data_test.map((bike) => (
+        {data_bleeper &&
+          data_bleeper.map((bike) => (
             <Circle
               key={bike.bike_id}
               center={{

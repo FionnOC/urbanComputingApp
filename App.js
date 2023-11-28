@@ -37,6 +37,7 @@ export default function App() {
   const [data_test, setData] = useState([]);
   const [data_dub_bikes, setDublinData] = useState([]);
   const [destination, setDestination] = useState("");
+  const [finalLocation, setFinalCoordinate] = useState({});
 
   const [closestBikeState, setClosestState] = useState(false);
 
@@ -47,8 +48,10 @@ export default function App() {
     longitudeDelta: 0.01,
   });
   const [lengthOfJourney, setLength] = useState("");
+  const [lengthwalk, setWalkLength] = useState("");
   const [directionsBounds, setDirectionsBounds] = useState(null);
   const [directions, setDirections] = useState([]);
+  const [walkingDirections, setWalkingDirections] = useState([]);
 
   const mapRef = useRef(null);
 
@@ -66,6 +69,20 @@ export default function App() {
     }
   };
 
+  const getDirectionsWalking = async (startLoc, destinationLoc) => {
+    try {
+      const KEY = "AIzaSyD4Ggrwk8hQsaw_tjciJ63YEev2aV1ae84";
+      let resp = await fetch(
+        `https://maps.googleapis.com/maps/api/directions/json?origin=${startLoc}&key=${KEY}&destination=${destinationLoc}&mode=walking`
+      );
+      let respJson = await resp.json();
+
+      return respJson;
+    } catch (error) {
+      return error;
+    }
+  };
+
   const onClickGetDirections = async () => {
     if (closestBike && destination) {
       let startLocation = "";
@@ -74,7 +91,10 @@ export default function App() {
       } else {
         startLocation = `${closestBike.lat}, ${closestBike.lon}`;
       }
+
+      // for the cycling directions
       const endLocation = encodeURIComponent(destination);
+
       const response = await getDirections(startLocation, endLocation);
 
       let points = decode(response.routes[0].overview_polyline.points);
@@ -88,8 +108,37 @@ export default function App() {
         };
       });
 
+      setFinalCoordinate(directions[directions.length - 1]);
+
+      // now for the walking part
+      startWalkPoint = `${location.coords.latitude}, ${location.coords.longitude}`;
+
+      const walkingResponse = await getDirectionsWalking(
+        startWalkPoint,
+        startLocation
+      );
+
+      let lengthOfWalk = walkingResponse.routes[0].legs[0].duration.text;
+      // console.log("AH");
+      // console.log(walkingResponse.routes[0]);
+
+      let walkingPoints = decode(
+        walkingResponse.routes[0].overview_polyline.points
+      );
+
+      let walkingDirections = walkingPoints.map((point, index) => {
+        return {
+          latitude: point[0],
+          longitude: point[1],
+        };
+      });
+
+      console.log("walking points should be found by here");
+
       setDirections(directions);
+      setWalkingDirections(walkingDirections);
       setLength(length);
+      setWalkLength(lengthOfWalk);
 
       // Calculate bounds of the directions
       const bounds = directions.reduce(
@@ -221,7 +270,7 @@ export default function App() {
       }
     });
 
-    console.log(checkClosestBike);
+    // console.log(checkClosestBike);
 
     return checkClosestBike;
   };
@@ -266,7 +315,7 @@ export default function App() {
       setClosestBike(closestBike);
     }
 
-    pushDataToFirebase(data);
+    // pushDataToFirebase(data);
 
     return closestBike;
   };
@@ -424,10 +473,23 @@ export default function App() {
             />
           ))}
         {directions.length > 0 && (
+          <View>
+            <Polyline
+              coordinates={directions}
+              strokeWidth={5}
+              strokeColor={calculateLineColor(directions.length)}
+            />
+            <Marker
+              coordinate={finalLocation}
+              pinColor={calculateLineColor(directions.length)}
+            />
+          </View>
+        )}
+        {walkingDirections.length > 0 && (
           <Polyline
-            coordinates={directions}
+            coordinates={walkingDirections}
             strokeWidth={5}
-            strokeColor={calculateLineColor(directions.length)}
+            strokeColor={"blue"}
           />
         )}
       </MapView>
@@ -470,7 +532,9 @@ export default function App() {
           Longitude: {location ? location.coords.longitude : "Loading..."}
         </Text>
         {lengthOfJourney && (
-          <Text style={styles.journeyLength}>{lengthOfJourney}</Text>
+          <Text style={styles.journeyLength}>
+            {lengthwalk} walk and {lengthOfJourney} cycle to {destination}
+          </Text>
         )}
         {/* {directions && <Text style={styles.journeyLength}>{directions.length}</Text>} */}
       </View>
@@ -484,7 +548,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   bottomContainer: {
-    flex: 0.3,
+    flex: 0.35,
   },
   input: {
     alignSelf: "center",
@@ -499,13 +563,22 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
   },
   map: {
-    flex: 0.7,
+    flex: 0.65,
   },
-  box: { flexDirection: "row", alignSelf: "center", paddingVertical: 10 },
+  box: {
+    flexDirection: "row",
+    alignSelf: "center",
+    paddingVertical: 10,
+  },
   button: { marginVertical: 16, marginHorizontal: 10 },
   text: {
     paddingBottom: 8,
     alignSelf: "center",
   },
-  journeyLength: { alignSelf: "center", fontWeight: "bold", fontSize: 32 },
+  journeyLength: {
+    alignSelf: "center",
+    fontWeight: "bold",
+    fontSize: 22,
+    textAlign: "center",
+  },
 });

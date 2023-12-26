@@ -2,7 +2,9 @@
 
 # Mobile App Data Submission to Cloud
 
-I have built a mobile app using React Native that collects data from the device being run on and also fetches data from the SmartDublin BleeperBike API. The collected data from both sources is then uploaded to Firebase.
+I have built a mobile app using React Native that collects data from the device being run on and also fetches data from the SmartDublin BleeperBike API. The collected data from both sources is then uploaded to Firebase. 
+
+Users can input a destination and using Google Directions API, directions will be provided to the user.
 
 ## Prerequisites
 
